@@ -1,4 +1,4 @@
-# User Task Management
+# Full-stack Task Management App
 
 Full-stack User and Task Management application using React, Spring Boot, Java, and MySQL.
 

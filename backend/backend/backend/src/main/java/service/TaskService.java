@@ -1,6 +1,5 @@
 package service;
 
-
 import entity.Task;
 import entity.User;
 import org.springframework.beans.factory.annotation.Autowired;

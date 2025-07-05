@@ -1,6 +1,6 @@
 package entity;
 
-
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -14,7 +14,9 @@ public class Task {
     private String title;
     private String description;
     private LocalDateTime dueDate;
-    @ManyToOne
-    @JoinColumn(name = "user_id")
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "tasks", "password", "resetToken", "resetTokenExpiration"})
     private User user;
 }

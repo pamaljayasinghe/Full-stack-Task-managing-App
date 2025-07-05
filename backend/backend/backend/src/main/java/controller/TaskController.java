@@ -15,6 +15,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/tasks")
+@CrossOrigin(origins = "http://localhost:3000")
 public class TaskController {
 
     @Autowired
@@ -27,44 +28,59 @@ public class TaskController {
     private UserService userService;
 
     @GetMapping
-    public List<Task> getTasks(@RequestHeader("Authorization") String token) {
-        String username = userService.validateToken(token.substring(7));
-        if (username == null) {
-            throw new RuntimeException("Unauthorized");
+    public ResponseEntity<List<Task>> getTasks(@RequestHeader("Authorization") String token) {
+        try {
+            String username = userService.validateToken(token.substring(7));
+            if (username == null) {
+                return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED).build();
+            }
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            List<Task> tasks = taskRepository.findByUserId(user.getId());
+            return ResponseEntity.ok(tasks);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpServletResponse.SC_INTERNAL_SERVER_ERROR).build();
         }
-        User user = new User(); // Placeholder, replace with userRepository.findByUsername(username)
-        user.setUsername(username);
-        return taskRepository.findByUser(user);
     }
 
     @PostMapping
-    public Task createTask(@RequestBody Task task, @RequestHeader("Authorization") String token) {
-        String username = userService.validateToken(token.substring(7));
-        if (username == null) {
-            throw new RuntimeException("Unauthorized");
+    public ResponseEntity<Task> createTask(@RequestBody Task task, @RequestHeader("Authorization") String token) {
+        try {
+            String username = userService.validateToken(token.substring(7));
+            if (username == null) {
+                return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED).build();
+            }
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            task.setUser(user);
+            Task savedTask = taskRepository.save(task);
+            return ResponseEntity.ok(savedTask);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpServletResponse.SC_INTERNAL_SERVER_ERROR).build();
         }
-        User user = new User(); // Placeholder, replace with userRepository.findByUsername(username)
-        user.setUsername(username);
-        task.setUser(user);
-        return taskRepository.save(task);
     }
 
     @PutMapping("/{id}")
-    public Task updateTask(@PathVariable Long id, @RequestBody Task taskDetails, @RequestHeader("Authorization") String token) {
-        String username = userService.validateToken(token.substring(7));
-        if (username == null) {
-            throw new RuntimeException("Unauthorized");
+    public ResponseEntity<Task> updateTask(@PathVariable Long id, @RequestBody Task taskDetails, @RequestHeader("Authorization") String token) {
+        try {
+            String username = userService.validateToken(token.substring(7));
+            if (username == null) {
+                return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED).build();
+            }
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            Task task = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task not found"));
+            if (!task.getUser().getId().equals(user.getId())) {
+                return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED).build();
+            }
+            task.setTitle(taskDetails.getTitle());
+            task.setDescription(taskDetails.getDescription());
+            task.setDueDate(taskDetails.getDueDate());
+            Task updatedTask = taskRepository.save(task);
+            return ResponseEntity.ok(updatedTask);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpServletResponse.SC_INTERNAL_SERVER_ERROR).build();
         }
-        User user = new User(); // Placeholder, replace with userRepository.findByUsername(username)
-        user.setUsername(username);
-        Task task = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task not found"));
-        if (!task.getUser().getUsername().equals(user.getUsername())) {
-            throw new RuntimeException("Unauthorized");
-        }
-        task.setTitle(taskDetails.getTitle());
-        task.setDescription(taskDetails.getDescription());
-        task.setDueDate(taskDetails.getDueDate());
-        return taskRepository.save(task);
     }
 
     @DeleteMapping("/{id}")
@@ -73,10 +89,10 @@ public class TaskController {
         if (username == null) {
             return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED).body("Unauthorized");
         }
-        User user = new User(); // Placeholder, replace with userRepository.findByUsername(username)
-        user.setUsername(username);
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
         Task task = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task not found"));
-        if (!task.getUser().getUsername().equals(user.getUsername())) {
+        if (!task.getUser().getId().equals(user.getId())) {
             return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED).body("Unauthorized");
         }
         taskRepository.delete(task);
@@ -84,15 +100,20 @@ public class TaskController {
     }
 
     @GetMapping("/today")
-    public List<Task> getTodayTasks(@RequestHeader("Authorization") String token) {
-        String username = userService.validateToken(token.substring(7));
-        if (username == null) {
-            throw new RuntimeException("Unauthorized");
+    public ResponseEntity<List<Task>> getTodayTasks(@RequestHeader("Authorization") String token) {
+        try {
+            String username = userService.validateToken(token.substring(7));
+            if (username == null) {
+                return ResponseEntity.status(HttpServletResponse.SC_UNAUTHORIZED).build();
+            }
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
+            LocalDateTime endOfDay = startOfDay.plusDays(1);
+            List<Task> todayTasks = taskRepository.findByUserIdAndDueDateBetween(user.getId(), startOfDay, endOfDay);
+            return ResponseEntity.ok(todayTasks);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpServletResponse.SC_INTERNAL_SERVER_ERROR).build();
         }
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
-        LocalDateTime endOfDay = startOfDay.plusDays(1);
-        return taskRepository.findByUserAndDueDateBetween(user, startOfDay, endOfDay);
     }
 }

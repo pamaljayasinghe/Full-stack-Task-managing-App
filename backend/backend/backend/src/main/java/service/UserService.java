@@ -1,16 +1,13 @@
 package service;
 
-
-
 import entity.User;
 import repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import util.JwtUtil;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,15 +19,15 @@ public class UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
-
-    // In-memory storage for tokens (for simplicity; use a database or cache in production)
-    private Map<String, String> tokenStore = new HashMap<>();
+    
+    @Autowired
+    private JwtUtil jwtUtil;
 
     public User registerUser(User user) {
-        if (userRepository.findByUsername(user.getUsername()) != null) {
+        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
             throw new RuntimeException("Username already exists");
         }
-        if (userRepository.findByEmail(user.getEmail()) != null) {
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
             throw new RuntimeException("Email already exists");
         }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
@@ -40,11 +37,14 @@ public class UserService {
     public String login(String username, String password) {
         Optional<User> user = userRepository.findByUsername(username);
         if (user.isPresent() && passwordEncoder.matches(password, user.get().getPassword())) {
-            String token = UUID.randomUUID().toString();
-            tokenStore.put(token, username);
-            return token;
+            return jwtUtil.generateToken(username);
         }
         throw new RuntimeException("Invalid credentials");
+    }
+
+    public User getUserByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
     public void forgotPassword(String email) {
@@ -86,6 +86,6 @@ public class UserService {
     }
 
     public String validateToken(String token) {
-        return tokenStore.get(token);
+        return jwtUtil.validateTokenAndGetUsername(token);
     }
 }

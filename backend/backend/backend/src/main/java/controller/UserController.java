@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/api")
+@CrossOrigin(origins = "http://localhost:3000")
 public class UserController {
 
     @Autowired
@@ -58,9 +59,14 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
         String token = userService.login(loginRequest.getUsername(), loginRequest.getPassword());
-        return ResponseEntity.ok(token);
+        User user = userService.getUserByUsername(loginRequest.getUsername());
+        // Clear sensitive data before sending
+        user.setPassword(null);
+        user.setResetToken(null);
+        user.setResetTokenExpiration(null);
+        return ResponseEntity.ok(new dto.JwtResponse(token, user));
     }
 
     @PostMapping("/forgot-password")
